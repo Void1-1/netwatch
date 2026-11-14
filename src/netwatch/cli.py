@@ -77,7 +77,8 @@ ConfigOption = Annotated[
 
 def _fail(message: str) -> typer.Exit:
     """Print an error and return an Exit to raise"""
-    console.print(f"[bold red]error:[/] {escape(message)}")
+    # soft_wrap: errors carry paths and commands to copy, so the terminal wraps them, not Rich
+    console.print(f"[bold red]error:[/] {escape(message)}", soft_wrap=True)
     return typer.Exit(code=1)
 
 

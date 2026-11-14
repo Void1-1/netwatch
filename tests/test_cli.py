@@ -90,6 +90,17 @@ def test_watch_without_a_model_explains_what_to_do(workdir: Path) -> None:
     assert "netwatch train" in result.output
 
 
+def test_errors_are_not_broken_into_lines(workdir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """an error names a path and a command to copy, however deep the working directory is"""
+    deep = workdir / ("d" * 60) / ("e" * 60)
+    deep.mkdir(parents=True)
+    monkeypatch.chdir(deep)
+    result = run("watch")
+    assert result.exit_code == 1
+    model_path = deep.resolve() / "models" / "netwatch-model.pkl"
+    assert result.output == f"error: no trained model at {model_path}: run `netwatch train`\n"
+
+
 def test_offline_flow_build_train_alerts_label(workdir: Path) -> None:
     """build-windows -> train -> alerts -> label on synthetic events"""
     assert run("init").exit_code == 0

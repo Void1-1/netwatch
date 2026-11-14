@@ -1,0 +1,40 @@
+# runtime data (captured events, feature windows, alerts). The placeholder config is kept in git
+data/*
+!data/.gitkeep
+
+# trained models can leak activity
+models/*
+!models/.gitkeep
+
+# databases anywhere in the tree, including SQLite side files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# GeoIP databases (MaxMind licence forbids redistribution)
+*.mmdb
+
+# secrets and config
+.env
+.env.*
+config.yaml
+
+# Python/tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# editors/OS
+.DS_Store
+.vscode/

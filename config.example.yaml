@@ -1,0 +1,101 @@
+# netwatch example configuration
+#
+# Copy this file to `config.yaml` (or run `netwatch init`) and adjust.
+# `config.yaml` is gitignored for privacy
+#
+# Every value below is the default. Unknown keys are rejected.
+# Relative paths are resolved against the directory containing the config file.
+
+paths:
+  # Runtime data directory
+  data_dir: data
+  # SQLite database holding events, windows, alerts, labels and novelty memory
+  db_path: data/netwatch.db
+  # Where `netwatch train` saves fitted detectors
+  models_dir: models
+
+collector:
+  # Seconds between connection snapshots. Shorter catches more short-lived connections at CPU cost
+  interval_seconds: 5.0
+  # psutil connection kind: inet, inet4, inet6, tcp, tcp4, tcp6, udp, udp4, udp6
+  kind: inet
+  # On macOS, listing every process's sockets needs root. If true and netwatch is not root, fall back to the processes the current user owns (partial view)
+  allow_partial: true
+
+features:
+  # Length of the per-process behaviour window (seconds)
+  window_seconds: 300
+  # A destination needs at this many connections inside a window before judged as periodic
+  min_periodic_events: 4
+  # Executables under these directories are flagged as running from a suspicious location.
+  # `~` expands to the current user's home
+  suspicious_paths:
+    - /tmp
+    - /private/tmp
+    - /var/tmp
+    - /private/var/tmp
+    - /dev/shm
+    - ~/Downloads
+
+novelty:
+  # How quickly a process to IP/port report fades. A pair seen once is forgotten after ~one half-life; frequently seen pairs last longer
+  half_life_days: 14.0
+  # Familiarity below this is "new". A sighting gives 1.0
+  min_familiarity: 0.5
+
+detectors:
+  # `weight` scales a detector's percentile before the maximum is taken, and must be within 0-1.
+  # It is a switch more than a dial, because a percentile tops out at 1.0:
+  #   1.0                                   the detector counts in full
+  #   below scoring.alert_threshold         it can no longer raise an alert by itself
+  #   below scoring.contribution_threshold  it no longer adds its reasons either
+  # At least one enabled detector needs a weight of scoring.alert_threshold or more.
+
+  # Layer 1: first-seen/rare (process, destination) pairs
+  novelty:
+    enabled: true
+    weight: 1.0
+    # More surprise (in -log10 probability units) when a process was never seen during training
+    unseen_process_surprise: 4.0
+  # Layer 1b: volume, fan-out and timing outside the process's range
+  baseline:
+    enabled: true
+    weight: 1.0
+    # Processes with fewer training windows are compared with the machine
+    min_windows_per_process: 50
+  # Layer 2: isolation forest over window features, one model per process
+  isolation_forest:
+    enabled: true
+    weight: 1.0
+    n_estimators: 100
+    # Processes with fewer training windows share a global model
+    min_windows_per_process: 50
+    random_state: 42
+  # Layer 3 (planned): autoencoder reconstruction error
+  autoencoder:
+    enabled: false
+    weight: 1.0
+  # Layer 4 (planned): next-destination sequence surprise
+  sequence:
+    enabled: false
+    weight: 1.0
+
+training:
+  # `netwatch train` uses this many days of the most recent windows
+  days: 7
+  # Windows from the first hours of collection are skipped
+  warmup_hours: 24.0
+
+scoring:
+  # A window alerts when its combined score (the weighted maximum of per-detector percentiles against that process's training history) reaches this value
+  alert_threshold: 0.999
+  # Detectors at or above this weighted percentile present their reasons
+  contribution_threshold: 0.95
+  # Processes with fewer training windows are ranked against machine-wide score history
+  min_process_history: 50
+
+alerts:
+  # rich-formatted alerts in the terminal running `netwatch watch`
+  console: true
+  # native notifications via osascript (macOS only) (planned for other systems)
+  macos_notifications: false
